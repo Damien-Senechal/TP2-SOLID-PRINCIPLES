@@ -1,6 +1,7 @@
 namespace HotelReservation.Repositories;
 
 using HotelReservation.Models;
+using HotelReservation.Services;
 
 public class InMemoryReservationRepository : IReservationRepository
 {
@@ -47,9 +48,10 @@ public class InMemoryReservationRepository : IReservationRepository
 
     public decimal GetTotalRevenue(DateTime from, DateTime to)
     {
+        var billing = new BillingCalculator();
         return _reservations.Values
             .Where(r => r.CheckIn >= from && r.CheckOut <= to && r.Status != "Cancelled")
-            .Sum(r => r.CalculateTotal());
+            .Sum(r => billing.CalculateTotal(r));
     }
 
     public Dictionary<string, int> GetOccupancyStats(DateTime from, DateTime to)

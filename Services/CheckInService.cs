@@ -2,8 +2,6 @@ namespace HotelReservation.Services;
 
 using HotelReservation.Models;
 
-// SRP VIOLATION (Example 2): A single method mixes multiple levels of abstraction.
-// High-level business rules sit next to low-level cache manipulation and config reading.
 public class CheckInService
 {
     private readonly Dictionary<string, CacheEntry> _cache = new();
@@ -13,41 +11,56 @@ public class CheckInService
     {
         _dataStore = dataStore;
     }
-
+    
     public void ProcessCheckIn(Reservation reservation)
     {
-        // HIGH LEVEL: business rule
-        if (reservation.Status != "Confirmed")
-            throw new Exception($"Cannot check in: reservation is {reservation.Status}");
-
-        // LOW LEVEL: cache manipulation
-        if (_cache.ContainsKey(reservation.Id))
-            _cache.Remove(reservation.Id);
-        _cache[reservation.Id] = new CacheEntry(DateTime.Now, "CheckedIn");
-
-        // HIGH LEVEL: late check-in fee logic
-        var lateCheckInFee = 25m; // Hardcoded, should come from config
-        if (DateTime.Now.Hour >= 22)
-            reservation.TotalPrice += lateCheckInFee;
-
-        // LOW LEVEL: direct state mutation
-        reservation.Status = "CheckedIn";
-
-        // LOW LEVEL: direct notification
-        Console.WriteLine($"[SMS] Room {reservation.RoomId} is now occupied");
+        ValidateCheckIn(reservation);
+        ApplyLateCheckInFeeIfNeeded(reservation);
+        UpdateStatus(reservation, "CheckedIn");
+        NotifyRoomOccupied(reservation.RoomId);
     }
 
     public void ProcessCheckOut(Reservation reservation)
     {
+        ValidateCheckOut(reservation);
+        UpdateStatus(reservation, "CheckedOut");
+        NotifyRoomFree(reservation.RoomId);
+    }
+
+    private void ValidateCheckIn(Reservation reservation)
+    {
+        if (reservation.Status != "Confirmed")
+            throw new Exception($"Cannot check in: reservation is {reservation.Status}");
+    }
+
+    private void ValidateCheckOut(Reservation reservation)
+    {
         if (reservation.Status != "CheckedIn")
             throw new Exception($"Cannot check out: reservation is {reservation.Status}");
-
-        reservation.Status = "CheckedOut";
-
-        // LOW LEVEL: cache cleanup
-        if (_cache.ContainsKey(reservation.Id))
-            _cache.Remove(reservation.Id);
-
-        Console.WriteLine($"[SMS] Room {reservation.RoomId} is now free");
     }
+
+    private void ApplyLateCheckInFeeIfNeeded(Reservation reservation)
+    {
+        const decimal lateCheckInFee = 25m;
+        if (DateTime.Now.Hour >= 22)
+            reservation.TotalPrice += lateCheckInFee;
+    }
+
+    private void UpdateStatus(Reservation reservation, string newStatus)
+    {
+        RefreshCache(reservation.Id, newStatus);
+        reservation.Status = newStatus;
+    }
+
+    private void RefreshCache(string reservationId, string status)
+    {
+        _cache.Remove(reservationId);
+        _cache[reservationId] = new CacheEntry(DateTime.Now, status);
+    }
+
+    private void NotifyRoomOccupied(string roomId) =>
+        Console.WriteLine($"[SMS] Room {roomId} is now occupied");
+
+    private void NotifyRoomFree(string roomId) =>
+        Console.WriteLine($"[SMS] Room {roomId} is now free");
 }
