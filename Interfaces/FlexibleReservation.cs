@@ -1,6 +1,6 @@
 namespace HotelReservation.Interfaces;
 
-public class FlexibleReservation : ICancellable
+public class FlexibleReservation : ICancellableReservation
 {
     public string Id { get; set; } = string.Empty;
     public string GuestName { get; set; } = string.Empty;
@@ -12,8 +12,5 @@ public class FlexibleReservation : ICancellable
         Status = "Cancelled";
     }
 
-    public decimal CalculateRefund()
-    {
-        return TotalPrice; // Full refund
-    }
+    public decimal CalculateRefund() => TotalPrice;
 }
