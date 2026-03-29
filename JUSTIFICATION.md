@@ -37,3 +37,15 @@ J'ai séparé l'interface en deux : IReservation qui est la base commune sans Ca
 CachedRoomRepository était censé remplacer IRoomRepository mais GetAvailableRooms ignorait les paramètres de date et retournait des données potentiellement périmées. Et Save() n'invalidait pas le cache. Substituer ce repo à la place d'un autre donnait des résultats incorrects, ce qui viole LSP.
 J'ai corrigé GetAvailableRooms pour qu'elle délègue toujours au repo interne afin d'avoir des données fraîches. Et Save() invalide maintenant l'entrée correspondante dans le cache.
 
+4.1 — IReservationRepository
+
+L'interface avait 9 méthodes mais chaque consommateur n'en utilisait que 1 à 3. Par exemple HousekeepingService n'avait besoin que de GetByDateRange mais dépendait quand même des 8 autres. J'ai donc séparé en trois interfaces : IReservationReader pour la lecture, IReservationWriter pour l'écriture, et IReservationStats pour les statistiques. Chaque service ne dépend plus que de ce dont il a réellement besoin.
+
+4.2 — InvoiceGenerator
+
+InvoiceGenerator prenait une Reservation complète mais n'utilisait que 6 champs. J'ai créé une interface IInvoiceable avec uniquement ces champs. Reservation implémente cette interface et InvoiceGenerator ne dépend plus que d'elle. Si on ajoute un champ à Reservation qui ne concerne pas la facturation, InvoiceGenerator n'est plus impacté.
+
+4.3 — INotificationService
+
+L'interface regroupait 4 canaux de notification alors que chaque consommateur n'en utilisait qu'un. J'ai séparé en IEmailSender, ISmsSender, IPushNotifier et ISlackNotifier. Chaque service reçoit uniquement l'interface dont il a besoin.
+

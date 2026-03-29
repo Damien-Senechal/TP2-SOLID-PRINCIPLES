@@ -1,6 +1,8 @@
+using HotelReservation.Interfaces;
+
 namespace HotelReservation.Models;
 
-public class Reservation
+public class Reservation : IInvoiceable
 {
     public string Id { get; set; } = string.Empty;
     public string GuestName { get; set; } = string.Empty;
