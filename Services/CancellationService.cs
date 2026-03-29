@@ -1,37 +1,27 @@
 namespace HotelReservation.Services;
 
+using HotelReservation.Interfaces;
 using HotelReservation.Models;
+using HotelReservation.Services.Policies;
 
-// OCP VIOLATION: Adding a new cancellation policy (e.g., "SuperFlexible")
-// requires opening this class and adding a new case to the switch.
 public class CancellationService
 {
+    private readonly List<ICancellationPolicy> _policies = new()
+    {
+        new FlexiblePolicy(),
+        new ModeratePolicy(),
+        new StrictPolicy(),
+        new NonRefundablePolicy()
+    };
+
+    private ICancellationPolicy GetPolicy(string policyName) =>
+        _policies.FirstOrDefault(p => p.PolicyName == policyName)
+            ?? throw new ArgumentException($"Unknown cancellation policy: {policyName}");
+
     public decimal CalculateRefund(Reservation reservation, DateTime now)
     {
-        var daysBeforeCheckIn = (reservation.CheckIn - now).Days;
-
-        switch (reservation.CancellationPolicy)
-        {
-            case "Flexible":
-                return daysBeforeCheckIn >= 1 ? reservation.TotalPrice : 0m;
-
-            case "Moderate":
-                if (daysBeforeCheckIn >= 5) return reservation.TotalPrice;
-                if (daysBeforeCheckIn >= 2) return reservation.TotalPrice * 0.5m;
-                return 0m;
-
-            case "Strict":
-                if (daysBeforeCheckIn >= 14) return reservation.TotalPrice;
-                if (daysBeforeCheckIn >= 7) return reservation.TotalPrice * 0.5m;
-                return 0m;
-
-            case "NonRefundable":
-                return 0m;
-
-            default:
-                throw new ArgumentException(
-                    $"Unknown cancellation policy: {reservation.CancellationPolicy}");
-        }
+        var policy = GetPolicy(reservation.CancellationPolicy);
+        return policy.CalculateRefund(reservation, now);
     }
 
     public void CancelReservation(Reservation reservation, DateTime now)

@@ -1,41 +1,29 @@
-# JUSTIFICATION — Principes SOLID
+Justification
 
-## Exercice 1 — SRP (Single Responsibility Principle)
+1.1
 
----
+La classe ReservationService prenait trop de choses en charge ce qui n'est pas bien. J'ai a donc séparé la classe en 3 couches pour repartir les taches et permettre des modification plus simple.
+RoomRepository et ReservationRepository s'occupe du stockage, ReservationDomainService gere la partie metier et ReservationService de l'applicatif.
 
-### 1.1 — ReservationService
+1.2
 
-**Problème :** La classe faisait tout : elle loggait, vérifiait la dispo, calculait le prix et orchestrait la création. Trois acteurs différents (ops, métier, chef de projet) pouvaient demander des changements dessus.
+ProcessCheckIn presentait un probleme similaire les taches n'etait pas séparé la methode faisait trop de choses. Elle avait acces a des details bas niveau et faisait tout d'un coup ce qui est une mauvaise pratique si on utilise une architecture SRP.
+J'ai donc séparer cette methode en plusieurs methodes qui effectue une tache chacune : ValidateCheckIn, ApplyLateCheckInFeeIfNeeded, UpdateStatus, NotifyRoomOccupied
 
-**Solution :** On a séparé en 3 couches :
-- `RoomRepository` / `ReservationRepository` → stockage (infra)
-- `ReservationDomainService` → règles métier (dispo, capacité, prix)
-- `ReservationService` → orchestration uniquement (applicatif)
+1.3
 
-**Bénéfice :** Si on change la règle de disponibilité, on touche uniquement `ReservationDomainService`. Si on passe à une vraie BDD, seul le repository change. Les modifications sont isolées.
+La classe Reservation se servait de 3 acteurs distinct Cancel, CalculateTotal et GenerateInvoiceLine, GetLinenChangeDays. J'ai donc extrait et séparé la partie comptabilité et gouvernance. Ce qui permet d'effectuer plus facilement des modification sur le code.
 
----
+Exercice 2 — OCP (Open/Closed Principle)
 
-### 1.2 — CheckInService
+2.1 — Les bons exemples déjà présents
 
-**Problème :** `ProcessCheckIn` mélange des opérations de haut niveau (validation, frais) avec des détails bas niveau (cache, SMS). Difficile à lire et à faire évoluer.
+ReservationEventDispatcher utilise le pattern Observer. On peut ajouter autant de handlers qu'on veut via Register sans jamais toucher au dispatcher, c'est un bon exemple OCP.
+IPriceCalculator avec SeasonalSurchargeDecorator utilise le pattern Decorator. Pour ajouter une nouvelle règle de prix il suffit de créer un nouveau decorator qui enveloppe le calculateur existant, aucune classe existante n'est modifiée.
+ICleaningPolicy avec StandardCleaningPolicy et VipCleaningPolicy utilise le pattern Strategy. Chaque politique est une classe séparée, ajouter une nouvelle politique de nettoyage ne demande que de créer une nouvelle implémentation.
 
-**Solution :** La méthode principale ne contient plus que des appels haut niveau (`ValidateCheckIn`, `ApplyLateCheckInFeeIfNeeded`, `UpdateStatus`, `NotifyRoomOccupied`). Les détails sont délégués à des méthodes privées dédiées.
+2.2 — CancellationService
 
-**Bénéfice :** On comprend l'intention de la méthode en 4 lignes. Changer le système de notification ne risque pas de casser la logique de validation.
+Le switch/case dans CancellationService était problématique car pour ajouter une nouvelle politique il fallait modifier directement la classe, ce qui viole OCP.
+J'ai donc créé une interface ICancellationPolicy et une classe par politique : FlexiblePolicy, ModeratePolicy, StrictPolicy, NonRefundablePolicy. CancellationService récupère simplement la bonne politique par son nom et l'appelle. Ajouter une nouvelle politique ne nécessite plus de toucher au service.
 
----
-
-### 1.3 — Reservation
-
-**Problème :** La classe servait 3 acteurs distincts :
-- **Le réceptionniste** : `Cancel()` — règles d'annulation
-- **Le comptable** : `CalculateTotal()`, `GenerateInvoiceLine()` — facturation
-- **La gouvernante** : `GetLinenChangeDays()` — planning ménage
-
-Si le comptable demande un changement de TVA, on modifie une classe que le réceptionniste et la gouvernante utilisent aussi.
-
-**Solution :** On a extrait `BillingCalculator` (comptable) et `HousekeepingScheduler` (gouvernante). `Reservation` garde uniquement les données et `Cancel()` pour le réceptionniste.
-
-**Bénéfice :** Chaque classe n'a plus qu'une seule raison de changer. On peut tester et faire évoluer la facturation sans toucher au planning de ménage.
