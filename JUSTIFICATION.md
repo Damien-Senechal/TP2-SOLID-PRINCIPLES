@@ -27,3 +27,13 @@ ICleaningPolicy avec StandardCleaningPolicy et VipCleaningPolicy utilise le patt
 Le switch/case dans CancellationService était problématique car pour ajouter une nouvelle politique il fallait modifier directement la classe, ce qui viole OCP.
 J'ai donc créé une interface ICancellationPolicy et une classe par politique : FlexiblePolicy, ModeratePolicy, StrictPolicy, NonRefundablePolicy. CancellationService récupère simplement la bonne politique par son nom et l'appelle. Ajouter une nouvelle politique ne nécessite plus de toucher au service.
 
+3.1 — ICancellable / FlexibleReservation / NonRefundableReservation
+
+NonRefundableReservation implémentait ICancellable mais faisait un throw dans Cancel(). N'importe quel code qui appelle Cancel() sur un ICancellable pouvait donc planter au runtime sans qu'on s'y attende, ce qui viole LSP.
+J'ai séparé l'interface en deux : IReservation qui est la base commune sans Cancel(), et ICancellableReservation qui étend IReservation et ajoute Cancel() uniquement pour les réservations annulables. NonRefundableReservation n'implémente que IReservation, donc l'appel à Cancel() est impossible à la compilation.
+
+3.2 — CachedRoomRepository
+
+CachedRoomRepository était censé remplacer IRoomRepository mais GetAvailableRooms ignorait les paramètres de date et retournait des données potentiellement périmées. Et Save() n'invalidait pas le cache. Substituer ce repo à la place d'un autre donnait des résultats incorrects, ce qui viole LSP.
+J'ai corrigé GetAvailableRooms pour qu'elle délègue toujours au repo interne afin d'avoir des données fraîches. Et Save() invalide maintenant l'entrée correspondante dans le cache.
+
